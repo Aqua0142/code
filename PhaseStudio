@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import html2pdf from 'html2pdf.js';
+import html2pdf from "html2pdf.js";
 
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -237,21 +237,21 @@ const STAGE_IO_DEFAULTS = {
 };
 
 const phaseDependencies = {
-  planning: 'requirements',
-  architecture: 'planning',
-  development: 'architecture',
-  testing: 'development',
-  nfr: 'testing'
+  planning: "requirements",
+  architecture: "planning",
+  development: "architecture",
+  testing: "development",
+  nfr: "testing",
 };
 const PHASE_REPO_CONFIG = {
-  p1: ["doc"],        // Requirements
-  p2: ["doc"],        // Planning
-  p3: ["doc"],       // Architecture
+  p1: ["doc"], // Requirements
+  p2: ["doc"], // Planning
+  p3: ["doc"], // Architecture
   p4: ["code", "doc"], // Development (Both)
-  p5: ["code"],       // Testing
-  p6: ["code"],       // NFR Testing
-  p7: ["doc"],        // UAT
-  p8: ["code"]        // Deployment
+  p5: ["code"], // Testing
+  p6: ["code"], // NFR Testing
+  p7: ["doc"], // UAT
+  p8: ["code"], // Deployment
 };
 
 export default function PhaseStudio() {
@@ -346,6 +346,11 @@ export default function PhaseStudio() {
 
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
+  const sprintCount = config.p2?.planning?.sprints || 0;
+  const weeksPerSprint = config.p2?.planning?.duration || 0;
+  const totalProjectWeeks = sprintCount * weeksPerSprint;
+  const displayDuration = totalProjectWeeks || 12;
+
   // Helper to add/remove humans
 
   const addHumanToPhase = (name) => {
@@ -371,22 +376,24 @@ export default function PhaseStudio() {
       [activeId]: { ...prev[activeId], [field]: value },
     }));
   };
-const getActiveInputs = () => {
+  const getActiveInputs = () => {
     // 🟢 Use 'activeId' instead of 'activePhase.id'
-    const currentPhaseId = activeId; 
-    
+    const currentPhaseId = activeId;
+
     // 🟢 Match the dependency key to your activeLabel
     const previousPhaseLabel = phaseDependencies[activeLabel.toLowerCase()];
-    
+
     // Find the actual stage ID for the previous phase (e.g., 'Requirements' -> 'p1')
-    const previousStage = STAGES.find(s => s.label.toLowerCase() === previousPhaseLabel);
+    const previousStage = STAGES.find(
+      (s) => s.label.toLowerCase() === previousPhaseLabel,
+    );
     const previousStageId = previousStage?.id;
 
     // 🟢 Use 'config' instead of 'phases'
     if (previousStageId && config[previousStageId]?.outputs?.length > 0) {
-      return config[previousStageId].outputs.map(output => ({
+      return config[previousStageId].outputs.map((output) => ({
         ...output,
-        isMandatory: true // This ensures the text turns Orange
+        isMandatory: true, // This ensures the text turns Orange
       }));
     }
 
@@ -550,13 +557,13 @@ const getActiveInputs = () => {
     const newProject = {
       id: projectId,
       name: projectName,
-      // finalPhases contains the IDs like ["p1", "p2", "p4"] 
-      selectedPhaseIds: finalPhases, 
+      // finalPhases contains the IDs like ["p1", "p2", "p4"]
+      selectedPhaseIds: finalPhases,
       phaseConfigs: config,
       totalCost: calculateTotalCost(finalPhases),
       cost: `${calculateTotalCost(finalPhases)}`,
       status: "New",
-      stage: STAGES.find(s => finalPhases.includes(s.id))?.label || "None",
+      stage: STAGES.find((s) => finalPhases.includes(s.id))?.label || "None",
       created: new Date().toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
@@ -565,12 +572,19 @@ const getActiveInputs = () => {
     };
 
     // 1. Persist to LocalStorage so the Router Wrapper/Details page can find it
-    const existingProjects = JSON.parse(localStorage.getItem("projects") || "[]");
-    localStorage.setItem("projects", JSON.stringify([newProject, ...existingProjects]));
+    const existingProjects = JSON.parse(
+      localStorage.getItem("projects") || "[]",
+    );
+    localStorage.setItem(
+      "projects",
+      JSON.stringify([newProject, ...existingProjects]),
+    );
 
     // 2. Navigate using the project ID route
     // We pass the project object in state as a backup for immediate rendering
-    navigate(`/project/${projectId}`, { state: { project: newProject, phaseConfigs: config } });
+    navigate(`/project/${projectId}`, {
+      state: { project: newProject, phaseConfigs: config },
+    });
   };
 
   const projectDuration = config.p2?.planning?.duration || 12;
@@ -582,19 +596,17 @@ const getActiveInputs = () => {
     const opt = {
       margin: [0.3, 0.3],
       filename: `${projectName}_Summary.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { 
-        scale: 2, 
-        useCORS: true, 
-        backgroundColor: '#161920' // Keeps your professional dark theme
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#161920", // Keeps your professional dark theme
       },
-      jsPDF: { unit: 'in', format: 'a3', orientation: 'landscape' }
+      jsPDF: { unit: "in", format: "a3", orientation: "landscape" },
     };
-    
+
     html2pdf().set(opt).from(element).save();
   };
-
-
 
   // --- Dynamic Right Sidebar Content ---
 
@@ -644,7 +656,7 @@ const getActiveInputs = () => {
               {[
                 { l: "Number of Sprints", k: "sprints" },
                 { l: "Points / Sprint", k: "points" },
-                { l: "Duration (Weeks)", k: "duration" },
+                { l: "Duration / Sprint (Weeks)", k: "duration" }, // 🟢 Syncs with 'weeksPerSprint'
               ].map((item) => (
                 <div
                   key={item.k}
@@ -656,13 +668,12 @@ const getActiveInputs = () => {
 
                   <input
                     type="number"
-                    min="0" // 🟢 Prevents negative values in UI
+                    min="0"
                     placeholder="0"
                     className="bg-transparent text-right w-12 outline-none text-white font-mono text-xs placeholder:text-slate-600"
                     value={activeData.planning[item.k]}
                     onChange={(e) => {
-                      const val = Math.max(0, parseInt(e.target.value) || 0); // 🟢 Logic check to prevent < 0
-
+                      const val = Math.max(0, parseInt(e.target.value) || 0);
                       updateField("planning", {
                         ...activeData.planning,
                         [item.k]: val,
@@ -671,6 +682,16 @@ const getActiveInputs = () => {
                   />
                 </div>
               ))}
+
+              {/* 🟢 VISUAL FEEDBACK: Calculated Total Cycle */}
+              <div className="pt-2 border-t border-white/10 flex justify-between items-center px-1">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                  Estimated Cycle
+                </span>
+                <span className="text-[11px] font-black text-emerald-400 font-mono">
+                  {displayDuration} Weeks
+                </span>
+              </div>
             </div>
           </div>
         );
@@ -794,7 +815,7 @@ const getActiveInputs = () => {
           <div className="flex items-center justify-between shrink-0">
             <div className="flex flex-col">
               <h1 className="text-2xl font-black uppercase tracking-tighter text-white flex items-center gap-3">
-                {activeLabel} {" "}
+                {activeLabel}{" "}
                 <Sparkles size={24} className="text-violet-500 animate-pulse" />
               </h1>
             </div>
@@ -838,7 +859,7 @@ const getActiveInputs = () => {
           <div className="grid grid-cols-2 gap-6">
             <EditableArtefactList
               title="Phase Inputs"
-              list={getActiveInputs()} 
+              list={getActiveInputs()}
               color="violet"
               type="inputs"
               entryMode={entryMode}
@@ -894,9 +915,9 @@ const getActiveInputs = () => {
 
                 updateField("outputs", newList);
               }}
-              repoUrl={location.state?.draft?.repoUrl}           // 🟢 Source for fetching
+              repoUrl={location.state?.draft?.repoUrl} // 🟢 Source for fetching
               targetCodeRepo={location.state?.draft?.codeRepoUrl} // 🟢 Target Code
-              targetDocRepo={location.state?.draft?.docRepoUrl}   // 🟢 Target Docs
+              targetDocRepo={location.state?.draft?.docRepoUrl} // 🟢 Target Docs
               activeId={activeId}
               updateField={updateField}
             />
@@ -1266,14 +1287,12 @@ const getActiveInputs = () => {
                     ) : (
                       <div
                         onClick={() => setEntryMode("add-human")}
-                        className="w-20 h-20 rounded-[1.8rem] border-2 border-dashed border-zinc-400 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all cursor-pointer flex flex-col items-center justify-center group"
+                        className="w-20 h-20 rounded-[1.8rem] border-2 border-zinc-400 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all cursor-pointer flex flex-col items-center justify-center group"
                       >
                         <UserPlus
                           size={24}
                           className="text-zinc-300 group-hover:text-amber-500 transition-colors"
                         />
-
-                      
                       </div>
                     )}
 
@@ -1289,114 +1308,112 @@ const getActiveInputs = () => {
 
         <div className="w-[320px] flex flex-col gap-6 shrink-0 overflow-y-auto no-scrollbar custom-scrollbar pr-1">
           <div className="flex flex-col gap-4 bg-gradient-to-br from-[#1a1d24] to-[#161920] border border-violet-500/20 rounded-3xl p-5 shadow-2xl">
-  <div className="flex items-center justify-between border-b border-white/5 pb-3">
-    <div className="flex flex-col">
-      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
-        Human Reviewer <span className="text-rose-500 ml-0.5">*</span>
-      </label>
-      <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">
-        Assign members
-      </span>
-    </div>
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex flex-col">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
+                  Human Reviewer <span className="text-rose-500 ml-0.5">*</span>
+                </label>
+                <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">
+                  Assign members
+                </span>
+              </div>
 
-    <button
-      onClick={() =>
-        setEntryMode(entryMode === "reviewers" ? null : "reviewers")
-      }
-      className="p-1.5 rounded-lg bg-violet-600 text-white"
-    >
-      <UserPlus size={16} />
-    </button>
-  </div>
+              <button
+                onClick={() =>
+                  setEntryMode(entryMode === "reviewers" ? null : "reviewers")
+                }
+                className="p-1.5 rounded-lg bg-violet-600 text-white"
+              >
+                <UserPlus size={16} />
+              </button>
+            </div>
 
-  <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto no-scrollbar">
-    <AnimatePresence>
-      {entryMode === "reviewers" && (
-        <motion.form
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!entryValue) return;
+            <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto no-scrollbar">
+              <AnimatePresence>
+                {entryMode === "reviewers" && (
+                  <motion.form
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!entryValue) return;
 
-            updateField("reviewers", [
-              ...activeData.reviewers,
-              entryValue,
-            ]);
+                      updateField("reviewers", [
+                        ...activeData.reviewers,
+                        entryValue,
+                      ]);
 
-            setEntryValue("");
-            setEntryMode(null);
-          }}
-          className="mb-1"
-        >
-          <input
-            autoFocus
-            value={entryValue}
-            onChange={(e) => setEntryValue(e.target.value)}
-            placeholder="Enter Name or Emp ID..."
-            className="w-full bg-black border border-violet-500/50 rounded-xl py-2 px-3 text-xs outline-none text-white font-bold"
-          />
-        </motion.form>
-      )}
-    </AnimatePresence>
+                      setEntryValue("");
+                      setEntryMode(null);
+                    }}
+                    className="mb-1"
+                  >
+                    <input
+                      autoFocus
+                      value={entryValue}
+                      onChange={(e) => setEntryValue(e.target.value)}
+                      placeholder="Enter Name or Emp ID..."
+                      className="w-full bg-black border border-violet-500/50 rounded-xl py-2 px-3 text-xs outline-none text-white font-bold"
+                    />
+                  </motion.form>
+                )}
+              </AnimatePresence>
 
-    {/* 🟢 DYNAMIC SIZING: Shrinks all cards when the 2nd name is added */}
-    {activeData.reviewers.length > 1 ? (
-      <div className="grid grid-cols-2 gap-2 mt-1">
-        {activeData.reviewers.map((name, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between bg-white/[0.03] border border-white/5 px-2 py-1.5 rounded-lg group hover:border-violet-500/30"
-          >
-            <span className="text-[10px] font-bold text-slate-400 truncate">
-              {name}
-            </span>
-            <button
-              onClick={() =>
-                updateField(
-                  "reviewers",
-                  activeData.reviewers.filter((_, idx) => idx !== i)
-                )
-              }
-              className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-rose-500 transition-colors"
-            >
-              <X size={10} />
-            </button>
+              {/* 🟢 DYNAMIC SIZING: Shrinks all cards when the 2nd name is added */}
+              {activeData.reviewers.length > 1 ? (
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {activeData.reviewers.map((name, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between bg-white/[0.03] border border-white/5 px-2 py-1.5 rounded-lg group hover:border-violet-500/30"
+                    >
+                      <span className="text-[10px] font-bold text-slate-400 truncate">
+                        {name}
+                      </span>
+                      <button
+                        onClick={() =>
+                          updateField(
+                            "reviewers",
+                            activeData.reviewers.filter((_, idx) => idx !== i),
+                          )
+                        }
+                        className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-rose-500 transition-colors"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                activeData.reviewers.map((name, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between bg-white/[0.03] border border-white/5 px-3 py-2 rounded-xl group hover:border-violet-500/30"
+                  >
+                    <span className="text-xs font-bold text-slate-200">
+                      {name}
+                    </span>
+
+                    <button
+                      onClick={() =>
+                        updateField(
+                          "reviewers",
+                          activeData.reviewers.filter((_, idx) => idx !== i),
+                        )
+                      }
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-500 transition-all"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        ))}
-      </div>
-    ) : (
-      activeData.reviewers.map((name, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between bg-white/[0.03] border border-white/5 px-3 py-2 rounded-xl group hover:border-violet-500/30"
-        >
-          <span className="text-xs font-bold text-slate-200">
-            {name}
-          </span>
-
-          <button
-            onClick={() =>
-              updateField(
-                "reviewers",
-                activeData.reviewers.filter((_, idx) => idx !== i)
-              )
-            }
-            className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-500 transition-all"
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
-      ))
-    )}
-  </div>
-</div>
 
           {/* 🟢 NEW PHASE SPECIFIC FIELDS CARD */}
 
           {renderPhaseSpecificFields()}
-
-         
 
           <div className="bg-[#1a1d24] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden shrink-0 transition-all duration-300">
             {/* Header / Toggle Trigger */}
@@ -1574,7 +1591,7 @@ const getActiveInputs = () => {
         </div>
       </footer>
 
-       <AnimatePresence>
+      <AnimatePresence>
         {showFinalModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <motion.div
@@ -1583,25 +1600,23 @@ const getActiveInputs = () => {
               animate={{
                 opacity: 1,
                 scale: 1,
-                width: isDetailsExpanded ? "1450px" : "1000px",
-                height: "fit-content",
-                maxHeight: "95vh",
+                width: isDetailsExpanded ? "95vw" : "1000px",
+                height: "85vh",
               }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#0c0c0e] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden transition-all duration-500"
+              className="bg-[#0c0c0e] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden flex flex-col transition-all duration-500"
             >
-              <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-[0_0_20px_#10b981]" />
- 
-              <div className="flex flex-col gap-6">
-                {/* --- TOP HEADER --- */}
+              <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-[0_0_20px_#10b981] shrink-0" />
+
+              <div className="flex flex-col h-full gap-6">
                 <div className="flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-5">
+                  <div className="flex items-center gap-3">
                     <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                      <Rocket size={28} />
+                      <Rocket size={20} />
                     </div>
                     <div className="flex flex-col">
                       <div className="flex items-center gap-3">
-                        <h2 className="text-3xl font-black uppercase tracking-[0.15em] text-white italic leading-none">
+                        <h2 className="text-xl font-black uppercase tracking-[0.15em] text-white italic leading-none">
                           Project Timeline Summary
                         </h2>
                         <button
@@ -1620,7 +1635,7 @@ const getActiveInputs = () => {
                       </span>
                     </div>
                   </div>
- 
+
                   <div className="flex items-center gap-8">
                     <button
                       onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
@@ -1641,268 +1656,253 @@ const getActiveInputs = () => {
                       <span className="text-[10px] font-black text-slate-500 uppercase block mb-1">
                         Estimated Cycle
                       </span>
-                      <span className="text-4xl font-black text-emerald-400 font-mono tracking-tighter">
-                        {projectDuration} Weeks
+                      <span className="text-xl font-black text-emerald-400 font-mono tracking-tighter">
+                        {displayDuration} Weeks
                       </span>
                     </div>
                   </div>
                 </div>
- 
-                {/* --- MAIN CONTENT AREA --- */}
-                <div className="flex gap-10 items-start overflow-hidden">
-                  {/* GANTT CHART */}
-                  <motion.div
-                    animate={{ width: isDetailsExpanded ? "45%" : "100%" }}
-                    className="flex flex-col gap-2 shrink-0"
-                  >
-                    <div className="flex flex-col gap-4 mb-4">
-                      <span className="text-[14px] font-black text-violet-400 uppercase tracking-widest italic px-1">
-                        Gantt Chart
-                      </span>
-                      <div className="grid grid-cols-[160px_1fr] border-b border-white/5 pb-4">
-                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center">
-                          Phase Node
-                        </span>
-                        <div className="flex justify-between px-2 gap-1">
-                          {Array.from(
-                            { length: projectDuration },
-                            (_, i) => i + 1,
-                          ).map((w) => (
-                            <span
-                              key={w}
-                              className="text-[8px] font-black text-white w-full text-center py-1 bg-violet-600/40 rounded-[4px] border border-violet-500/20 shadow-sm shadow-violet-900/20"
-                            >
-                              W{w}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
- 
-                    <div
-                      className={`${isDetailsExpanded ? "pt-[0.2px]" : "pt-0"} flex flex-col gap-1 overflow-y-auto no-scrollbar max-h-full relative`}
+
+                <div className="flex-1 overflow-y-auto no-scrollbar pr-2 min-h-0">
+                  <div className="flex gap-10 items-start overflow-hidden">
+                    <motion.div
+                      animate={{ width: isDetailsExpanded ? "45%" : "100%" }}
+                      className="flex flex-col gap-2 shrink-0"
                     >
-                      <div className="absolute inset-0 grid grid-cols-[160px_1fr] pointer-events-none">
-                        <div className="bg-transparent border-r border-white/5" />
-                        <div className="flex justify-between px-1 h-full">
-                          {Array.from({ length: projectDuration }).map(
-                            (_, i) => (
-                              <div
-                                key={i}
-                                className={`w-full h-full ${i % 2 === 0 ? "bg-white/[0.05]" : "bg-transparent"}`}
-                              />
-                            ),
-                          )}
+                      <div className="flex flex-col gap-4 mb-4">
+                        <span className="text-[14px] font-black text-violet-400 uppercase tracking-widest italic px-1">
+                          Gantt Chart
+                        </span>
+                        <div className="grid grid-cols-[160px_1fr] border-b border-white/5 pb-4">
+                          <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center">
+                            Phase Node
+                          </span>
+                          <div className="flex justify-between px-2 gap-1">
+                            {Array.from(
+                              { length: displayDuration },
+                              (_, i) => i + 1,
+                            ).map((w) => (
+                              <span
+                                key={w}
+                                className="text-[8px] font-black text-white w-full text-center py-1 bg-violet-600/40 rounded-[4px] border border-violet-500/20 shadow-sm shadow-violet-900/20"
+                              >
+                                W{w}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
- 
-                      {[...approvedPhases]
-                        .sort(
-                          (a, b) =>
-                            STAGES.findIndex((s) => s.id === a) -
-                            STAGES.findIndex((s) => s.id === b),
-                        )
-                        .map((id, index) => {
-                          {
-                            /* 🟢 NEW LOGIC: Calculate dynamic offsets and lengths */
-                          }
-                          let width = 15; // default base width
-                          let marginLeft = index * 7; // default stair-step offset
- 
-                          const reqWidth = 15;
-                          const planWidth = 18;
-                          const archWidth = 15;
-                          const devWidth = archWidth * 1.25;
-                          const testWidth = devWidth * 0.75;
-                          const nfrWidth = 8;
- 
-                          if (id === "p1") {
-                            width = reqWidth;
-                            marginLeft = 2;
-                          }
-                          if (id === "p2") {
-                            width = planWidth;
-                            marginLeft = 8;
-                          }
-                          if (id === "p3") {
-                            width = archWidth;
-                            marginLeft = 8 + planWidth;
-                          } // Starts after planning
-                          if (id === "p4") {
-                            width = devWidth;
-                            marginLeft = 8 + planWidth + archWidth * 0.75;
-                          } // Starts at 3/4 of Arch
-                          if (id === "p5") {
-                            width = testWidth;
-                            marginLeft =
-                              8 + planWidth + archWidth * 0.75 + devWidth * 0.5;
-                          } // Starts mid Dev
-                          if (id === "p6") {
-                            width = nfrWidth;
-                            marginLeft =
-                              8 +
-                              planWidth +
-                              archWidth * 0.75 +
-                              devWidth * 0.5 +
-                              testWidth;
-                          } // After Testing
-                          if (id === "p7") {
-                            width = nfrWidth;
-                            marginLeft =
-                              8 +
-                              planWidth +
-                              archWidth * 0.75 +
-                              devWidth * 0.5 +
-                              testWidth +
-                              nfrWidth;
-                          } // After NFR
-                          if (id === "p8") {
-                            width = nfrWidth;
-                            marginLeft =
-                              8 +
-                              planWidth +
-                              archWidth * 0.75 +
-                              devWidth * 0.5 +
-                              testWidth +
-                              nfrWidth * 2;
-                          }
- 
-                          return (
-                            <div
-                              key={id}
-                              className={`grid grid-cols-[160px_1fr] ${isDetailsExpanded ? "h-14" : "h-8"} group items-center relative z-10`}
-                            >
-                              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-white/[0.05] pointer-events-none" />
-                              <div className="flex items-center px-2 h-full">
-                                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mr-3 shadow-[0_0_10px_#8b5cf6]" />
-                                <span className="text-[10px] font-black uppercase text-slate-300 truncate">
-                                  {STAGES.find((s) => s.id === id)?.label}
-                                </span>
-                              </div>
-                              <div className="relative flex items-center px-1 h-full">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${width}%` }}
-                                  className={`${isDetailsExpanded ? "h-3" : "h-4"} -full bg-gradient-to-r from-violet-600 to-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.3)] relative z-10`}
-                                  style={{ marginLeft: `${marginLeft}%` }}
+
+                      <div className="flex flex-col gap-1 relative">
+                        <div className="absolute inset-0 grid grid-cols-[160px_1fr] pointer-events-none">
+                          <div className="bg-transparent border-r border-white/5" />
+                          <div className="flex justify-between px-1 h-full">
+                            {Array.from({ length: displayDuration }).map(
+                              (_, i) => (
+                                <div
+                                  key={i}
+                                  className={`w-full h-full ${
+                                    i % 2 === 0
+                                      ? "bg-white/[0.05]"
+                                      : "bg-transparent"
+                                  }`}
                                 />
-                              </div>
-                            </div>
+                              ),
+                            )}
+                          </div>
+                        </div>
+
+                        {(() => {
+                          {
+                            /* 🟢 DYNAMIC SHIFT LOGIC */
+                          }
+                          let currentOffset = 2; // Start margin
+                          const sortedApproved = [...approvedPhases].sort(
+                            (a, b) =>
+                              STAGES.findIndex((s) => s.id === a) -
+                              STAGES.findIndex((s) => s.id === b),
                           );
-                        })}
-                    </div>
-                  </motion.div>
- 
-                  {/* DETAILS TABLE */}
-                  <AnimatePresence>
-                    {isDetailsExpanded && (
-                      <motion.div
-                        initial={{ width: 0, opacity: 0, x: 50 }}
-                        animate={{ width: "55%", opacity: 1, x: 0 }}
-                        exit={{ width: 0, opacity: 0, x: 50 }}
-                        className="bg-black/20 border border-white/5 rounded-[2rem] p-6 overflow-hidden shadow-inner mt-4"
-                      >
-                        <table className="w-full text-left border-separate border-spacing-y-2">
-                          <thead>
-                            <tr className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                              <th className="px-4 pb-2">Source Artifacts</th>
-                              <th className="px-4 pb-2">Resource Cost</th>
-                              <th className="px-4 pb-2">Agent Squad</th>
-                              <th className="px-4 pb-2 text-right">
-                                Lead Reviewer
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[...approvedPhases]
-                              .sort(
-                                (a, b) =>
-                                  STAGES.findIndex((s) => s.id === a) -
-                                  STAGES.findIndex((s) => s.id === b),
-                              )
-                              .map((id) => {
-                                const phaseData = config[id];
-                                const linkedSources = phaseData.inputs.filter(
-                                  (inp) => inp.source,
-                                );
-                                return (
-                                  <tr
-                                    key={id}
-                                    className="h-14 bg-white/[0.02] hover:bg-white/[0.04] transition-all rounded-2xl"
-                                  >
-                                    <td className="px-4 rounded-l-2xl">
-                                      {linkedSources.length > 0 ? (
-                                        <div className="flex flex-col gap-1">
-                                          {linkedSources.map((src, sIdx) => (
-                                            <div
-                                              key={sIdx}
-                                              className="text-[9px] text-emerald-400 font-bold truncate max-w-[150px] underline underline-offset-2 hover:text-emerald-300 transition-colors"
-                                              title={src.source.value}
-                                            >
-                                              {src.source.value
-                                                .split("/")
-                                                .pop()}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <span className="text-[9px] text-slate-600 italic">
-                                          No docs attached
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="px-4">
-                                      <span className="text-[11px] font-black text-white font-mono tracking-tighter">
-                                        $
-                                        {(
-                                          parseFloat(calculateTotalCost([id])) -
-                                          12.75
-                                        ).toFixed(2)}
-                                      </span>
-                                    </td>
-                                    <td className="px-4">
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {phaseData.selectedAgents.map(
-                                          (a, i) => {
-                                            const agentCfg = phaseData
-                                              .agentConfigs[a]?.[0] || {
-                                              model: "GPT-4o",
-                                              instances: 1,
-                                            };
-                                            return (
+
+                          return sortedApproved.map((id) => {
+                            let width = 15;
+                            const reqWidth = 15;
+                            const planWidth = 18;
+                            const archWidth = 15;
+                            const devWidth = archWidth * 1.25;
+                            const testWidth = devWidth * 0.75;
+                            const nfrWidth = 8;
+
+                            let marginLeft = currentOffset;
+
+                            if (id === "p1") width = reqWidth;
+                            if (id === "p2") width = planWidth;
+                            if (id === "p3") width = archWidth;
+                            if (id === "p4") {
+                              width = devWidth;
+                              // Start dev slightly earlier (overlap) if architecture exists
+                              if (approvedPhases.includes("p3")) {
+                                marginLeft -= archWidth * 0.25;
+                              }
+                            }
+                            if (id === "p5") {
+                              width = testWidth;
+                              // Start test mid-dev if dev exists
+                              if (approvedPhases.includes("p4")) {
+                                marginLeft -= devWidth * 0.5;
+                              }
+                            }
+                            if (id === "p6") width = nfrWidth;
+                            if (id === "p7") width = nfrWidth;
+                            if (id === "p8") width = nfrWidth;
+
+                            // Update offset for the next bar based on this bar's end position
+                            currentOffset = marginLeft + width;
+
+                            return (
+                              <div
+                                key={id}
+                                className={`grid grid-cols-[160px_1fr] ${
+                                  isDetailsExpanded ? "h-14" : "h-8"
+                                } group items-center relative z-10`}
+                              >
+                                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-white/[0.05] pointer-events-none" />
+                                <div className="flex items-center px-2 h-full">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mr-3 shadow-[0_0_10px_#8b5cf6]" />
+                                  <span className="text-[10px] font-black uppercase text-slate-300 truncate">
+                                    {STAGES.find((s) => s.id === id)?.label}
+                                  </span>
+                                </div>
+                                <div className="relative flex items-center px-1 h-full">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${width}%` }}
+                                    className={`${
+                                      isDetailsExpanded ? "h-3" : "h-4"
+                                    } -full bg-gradient-to-r from-violet-600 to-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.3)] relative z-10`}
+                                    style={{ marginLeft: `${marginLeft}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </motion.div>
+
+                    <AnimatePresence>
+                      {isDetailsExpanded && (
+                        <motion.div
+                          initial={{ width: 0, opacity: 0, x: 50 }}
+                          animate={{ width: "55%", opacity: 1, x: 0 }}
+                          exit={{ width: 0, opacity: 0, x: 50 }}
+                          className="bg-black/20 border border-white/5 rounded-[2rem] p-6 overflow-hidden shadow-inner mt-2"
+                        >
+                          <table className="w-full text-left border-separate border-spacing-y-2">
+                            <thead>
+                              <tr className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+                                <th className="px-4 pb-2">Source Artifacts</th>
+                                <th className="px-4 pb-2">Resource Cost</th>
+                                <th className="px-4 pb-2">Agent Squad</th>
+                                <th className="px-4 pb-2 text-right">
+                                  Human Reviewer
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...approvedPhases]
+                                .sort(
+                                  (a, b) =>
+                                    STAGES.findIndex((s) => s.id === a) -
+                                    STAGES.findIndex((s) => s.id === b),
+                                )
+                                .map((id) => {
+                                  const phaseData = config[id];
+                                  const linkedSources = phaseData.inputs.filter(
+                                    (inp) => inp.source,
+                                  );
+                                  return (
+                                    <tr
+                                      key={id}
+                                      className="h-14 bg-white/[0.02] hover:bg-white/[0.04] transition-all rounded-2xl"
+                                    >
+                                      <td className="px-4 rounded-l-2xl">
+                                        {linkedSources.length > 0 ? (
+                                          <div className="flex flex-col gap-1 max-h-12 overflow-y-auto no-scrollbar py-1">
+                                            {linkedSources.map((src, sIdx) => (
                                               <div
-                                                key={i}
-                                                className="flex items-center gap-1 px-2 py-0.5 bg-black/40 border border-white/10 rounded-lg"
+                                                key={sIdx}
+                                                className="text-[9px] text-emerald-400 font-bold truncate max-w-[150px] underline underline-offset-2 hover:text-emerald-300 transition-colors"
+                                                title={src.source.value}
                                               >
-                                                <span className="text-[8px] font-black text-slate-400">
-                                                  {agentCfg.instances}x
-                                                </span>
-                                                <span className="text-[8px] font-black text-white uppercase tracking-tighter">
-                                                  {agentCfg.model.split(" ")[0]}
-                                                </span>
+                                                {src.source.value
+                                                  .split("/")
+                                                  .pop()}
                                               </div>
-                                            );
-                                          },
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <span className="text-[9px] text-slate-600 italic">
+                                            No docs attached
+                                          </span>
                                         )}
-                                      </div>
-                                    </td>
-                                    <td className="px-4 rounded-r-2xl text-right">
-                                      <span className="text-[9px] font-black text-slate-500 uppercase">
-                                        {phaseData.reviewers[0] || "---"}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                          </tbody>
-                        </table>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                                      </td>
+                                      <td className="px-4">
+                                        <span className="text-[11px] font-black text-white font-mono tracking-tighter">
+                                          $
+                                          {(
+                                            parseFloat(
+                                              calculateTotalCost([id]),
+                                            ) - 12.75
+                                          ).toFixed(2)}
+                                        </span>
+                                      </td>
+                                      <td className="px-4">
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {phaseData.selectedAgents.map(
+                                            (a, i) => {
+                                              const agentCfg = phaseData
+                                                .agentConfigs[a]?.[0] || {
+                                                model: "GPT-4o",
+                                                instances: 1,
+                                              };
+                                              return (
+                                                <div
+                                                  key={i}
+                                                  className="flex items-center gap-1 px-2 py-0.5 bg-black/40 border border-white/10 rounded-lg"
+                                                >
+                                                  <span className="text-[8px] font-black text-slate-400">
+                                                    {agentCfg.instances}x
+                                                  </span>
+                                                  <span className="text-[8px] font-black text-white uppercase tracking-tighter">
+                                                    {
+                                                      agentCfg.model.split(
+                                                        " ",
+                                                      )[0]
+                                                    }
+                                                  </span>
+                                                </div>
+                                              );
+                                            },
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 rounded-r-2xl text-right">
+                                        <span className="text-[9px] font-black text-slate-500 uppercase">
+                                          {phaseData.reviewers[0] || "---"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
- 
-                {/* --- FOOTER CONTROLS --- */}
-                <div className="flex gap-5 pt-6 border-t border-white/5 shrink-0">
+
+                <div className="flex gap-5 pt-6 border-t border-white/5 shrink-0 mt-auto bg-[#0c0c0e]">
                   <button
                     onClick={() => setShowFinalModal(false)}
                     className="px-10 py-4 rounded-2xl bg-white/5 border border-white/10 text-slate-500 text-[12px] font-black uppercase tracking-widest hover:text-white transition-all"
@@ -1921,8 +1921,6 @@ const getActiveInputs = () => {
           </div>
         )}
       </AnimatePresence>
- 
-
       <style
         dangerouslySetInnerHTML={{
           __html: ` 
@@ -1959,7 +1957,7 @@ function EditableArtefactList({
   const [linkingIdx, setLinkingIdx] = useState(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [tempSource, setTempSource] = useState({ type: "repo", value: "" });
-  
+
   const [isExploring, setIsExploring] = useState(false);
   const [repoContents, setRepoContents] = useState([]);
   const [currentDir, setCurrentDir] = useState("");
@@ -1970,8 +1968,8 @@ function EditableArtefactList({
   const isCompact = list.length > 4;
 
   const formatPath = (url) => {
-    if (!url || typeof url !== 'string') return "not-set";
-    const repoName = url.split('/').pop().replace('.git', '');
+    if (!url || typeof url !== "string") return "not-set";
+    const repoName = url.split("/").pop().replace(".git", "");
     return `/${repoName}/${activeId}`;
   };
 
@@ -1980,36 +1978,39 @@ function EditableArtefactList({
   const needs = PHASE_REPO_CONFIG[activeId] || [];
 
   const fetchRepoFiles = async (path = "") => {
-  // 🟢 FORCE use of repoUrl (Source Project Files: cts_training)
-  const activeUrl = repoUrl; 
-  
-  if (!activeUrl) {
-    setErrorMessage("No source repository (Project Files) found.");
-    return;
-  }
+    // 🟢 FORCE use of repoUrl (Source Project Files: cts_training)
+    const activeUrl = repoUrl;
 
-  setLoadingRepo(true);
-  try {
-    const response = await fetch('http://localhost:5000/api/github-explorer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // 🟢 This ensures the explorer ONLY looks at the source repo
-      body: JSON.stringify({ repoUrl: activeUrl, path })
-    });
-    
-    const data = await response.json();
-    if (response.ok && Array.isArray(data)) {
-      setRepoContents(data);
-      setCurrentDir(path);
-    } else {
-      setErrorMessage(data.error || "Failed to load files.");
+    if (!activeUrl) {
+      setErrorMessage("No source repository (Project Files) found.");
+      return;
     }
-  } catch (error) {
-    setErrorMessage("Could not connect to backend server.");
-  } finally {
-    setLoadingRepo(false);
-  }
-};
+
+    setLoadingRepo(true);
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/github-explorer",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // 🟢 This ensures the explorer ONLY looks at the source repo
+          body: JSON.stringify({ repoUrl: activeUrl, path }),
+        },
+      );
+
+      const data = await response.json();
+      if (response.ok && Array.isArray(data)) {
+        setRepoContents(data);
+        setCurrentDir(path);
+      } else {
+        setErrorMessage(data.error || "Failed to load files.");
+      }
+    } catch (error) {
+      setErrorMessage("Could not connect to backend server.");
+    } finally {
+      setLoadingRepo(false);
+    }
+  };
   const attachSource = (idx) => {
     const newList = [...list];
     newList[idx].source = tempSource;
@@ -2019,7 +2020,8 @@ function EditableArtefactList({
   };
 
   const createWithSource = () => {
-    if (!entryValue.trim()) return alert("Please enter a name for the element.");
+    if (!entryValue.trim())
+      return alert("Please enter a name for the element.");
     const newItem = {
       text: entryValue.trim(),
       isMandatory: false,
@@ -2034,48 +2036,47 @@ function EditableArtefactList({
   return (
     <div className="flex flex-col gap-3 min-h-0 relative">
       <div className="flex items-center justify-between px-1">
-        
         {/* 🟢 WRAPPER START: This container aligns title and badges horizontally */}
         <div className="flex items-center gap-3">
           <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 whitespace-nowrap">
             {title}
           </h4>
-{/* 🟢 TOP BADGES: Only visible for non-Development phases */}
-{type === "outputs" && activeId !== "p4" && (
-  <div className="flex items-center gap-2">
-    {needs.includes("code") && (
-      <div 
-        className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-violet-500/5 border border-violet-500/10 cursor-help"
-        title={formatPath(targetCodeRepo)} // Show full path on hover
-      >
-        <HardDrive size={10} className="text-violet-400" />
-        <code className="text-[9px] text-violet-300 font-mono truncate max-w-[120px]">
-          {formatPath(targetCodeRepo)}
-        </code>
-      </div>
-    )}
-    {needs.includes("doc") && (
-      <div 
-        className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/5 border border-emerald-500/10 cursor-help"
-        title={formatPath(targetDocRepo)} // Show full path on hover
-      >
-        <FileUp size={10} className="text-emerald-400" />
-        <code className="text-[9px] text-emerald-300 font-mono truncate max-w-[120px]">
-          {formatPath(targetDocRepo)}
-        </code>
-      </div>
-    )}
-  </div>
-)}
+          {/* 🟢 TOP BADGES: Only visible for non-Development phases */}
+          {type === "outputs" && activeId !== "p4" && (
+            <div className="flex items-center gap-2">
+              {needs.includes("code") && (
+                <div
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-violet-500/5 border border-violet-500/10 cursor-help"
+                  title={formatPath(targetCodeRepo)} // Show full path on hover
+                >
+                  <HardDrive size={10} className="text-violet-400" />
+                  <code className="text-[9px] text-violet-300 font-mono truncate max-w-[120px]">
+                    {formatPath(targetCodeRepo)}
+                  </code>
+                </div>
+              )}
+              {needs.includes("doc") && (
+                <div
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/5 border border-emerald-500/10 cursor-help"
+                  title={formatPath(targetDocRepo)} // Show full path on hover
+                >
+                  <FileUp size={10} className="text-emerald-400" />
+                  <code className="text-[9px] text-emerald-300 font-mono truncate max-w-[120px]">
+                    {formatPath(targetDocRepo)}
+                  </code>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {!isAdding && !isCreatingNew && (
-          <button 
+          <button
             onClick={() => {
-                setTempSource({ type: "repo", value: "" });
-                setEntryValue("");
-                setIsCreatingNew(true);
-            }} 
+              setTempSource({ type: "repo", value: "" });
+              setEntryValue("");
+              setIsCreatingNew(true);
+            }}
             className="p-1 hover:bg-white/10 rounded-md text-violet-400"
           >
             <Plus size={14} strokeWidth={3} />
@@ -2088,40 +2089,59 @@ function EditableArtefactList({
           /* 🟢 GRID VIEW: Shown for all items if total count is > 3 */
           <div className="grid grid-cols-3 gap-2">
             {list.map((item, idx) => (
-              <div 
-                key={idx} 
-                onClick={() => { 
-                  if (type === "inputs") { 
-                    setLinkingIdx(idx); 
-                    item.source ? setTempSource(item.source) : setTempSource({ type: "repo", value: "" }); 
-                  } 
-                }} 
+              <div
+                key={idx}
+                onClick={() => {
+                  if (type === "inputs") {
+                    setLinkingIdx(idx);
+                    item.source
+                      ? setTempSource(item.source)
+                      : setTempSource({ type: "repo", value: "" });
+                  }
+                }}
                 className={`flex items-center justify-between bg-[#1a1d24] border rounded-xl p-2 transition-all cursor-pointer relative min-w-0 
                   ${linkingIdx === idx ? "border-violet-500 ring-1 ring-violet-500/20" : "border-white/5"}`}
               >
                 <div className="flex items-center gap-1.5 overflow-hidden min-w-0">
-                  <div className={`w-0.5 h-2 rounded-full shrink-0 ${color === "emerald" ? "bg-emerald-500" : "bg-violet-500"}`} />
-                  <span className={`text-[9px] font-bold truncate ${item.isMandatory || item.isBookmarked ? "text-orange-500" : "text-slate-400"}`}>
+                  <div
+                    className={`w-0.5 h-2 rounded-full shrink-0 ${color === "emerald" ? "bg-emerald-500" : "bg-violet-500"}`}
+                  />
+                  <span
+                    className={`text-[9px] font-bold truncate ${item.isMandatory || item.isBookmarked ? "text-orange-500" : "text-slate-400"}`}
+                  >
                     {item.text}
                   </span>
                 </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onToggle(idx); }} 
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle(idx);
+                  }}
                   className={`shrink-0 ${item.isMandatory || item.isBookmarked ? "text-orange-500" : "text-slate-600"}`}
                 >
-                  {item.isMandatory || item.isBookmarked ? <BookmarkCheck size={10} /> : <Bookmark size={10} />}
+                  {item.isMandatory || item.isBookmarked ? (
+                    <BookmarkCheck size={10} />
+                  ) : (
+                    <Bookmark size={10} />
+                  )}
                 </button>
 
-                  {!item.isMandatory && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onDelete(idx); }} 
+                {!item.isMandatory && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(idx);
+                    }}
                     className="text-slate-600 hover:text-rose-500 transition-colors"
                   >
                     <X size={11} />
                   </button>
                 )}
                 {linkingIdx === idx && (
-                  <motion.div layoutId="activePointer" className="absolute -right-2 top-1/2 -translate-y-1/2 z-[110]">
+                  <motion.div
+                    layoutId="activePointer"
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 z-[110]"
+                  >
                     <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-r-[6px] border-r-violet-500" />
                   </motion.div>
                 )}
@@ -2131,62 +2151,93 @@ function EditableArtefactList({
         ) : (
           /* 🟢 LIST VIEW: Shown if 3 or fewer items exist */
           list.map((item, idx) => (
-            <div 
-              key={idx} 
-              onClick={() => { 
-                if (type === "inputs") { 
-                  setLinkingIdx(idx); 
-                  item.source ? setTempSource(item.source) : setTempSource({ type: "repo", value: "" }); 
-                } 
-              }} 
+            <div
+              key={idx}
+              onClick={() => {
+                if (type === "inputs") {
+                  setLinkingIdx(idx);
+                  item.source
+                    ? setTempSource(item.source)
+                    : setTempSource({ type: "repo", value: "" });
+                }
+              }}
               className={`flex items-center justify-between bg-[#1a1d24] border rounded-xl p-3 w-full group transition-all cursor-pointer relative 
                 ${linkingIdx === idx ? "border-violet-500 ring-1 ring-violet-500/20" : "border-white/5"}`}
             >
-                          <div className="flex items-center gap-2 overflow-hidden flex-1">
-              <div className={`w-1 h-3 rounded-full shrink-0 ${color === "emerald" ? "bg-emerald-500" : "bg-violet-500"}`} />
-              
-              <span className={`text-[11px] font-bold truncate ${item.isMandatory || item.isBookmarked ? "text-orange-500" : "text-slate-300"}`}>
-                {item.text}
-              </span>
+              <div className="flex items-center gap-2 overflow-hidden flex-1">
+                <div
+                  className={`w-1 h-3 rounded-full shrink-0 ${color === "emerald" ? "bg-emerald-500" : "bg-violet-500"}`}
+                />
 
-            {/* 🟢 DEVELOPMENT SPECIFIC: Now shows shortened repo name instead of static "Code" */}
-            {activeId === "p4" && type === "outputs" && (item.text.toLowerCase().includes("code") || item.text.toLowerCase().includes("test")) && (
-              <div className="ml-auto mr-2 shrink-0">
-                <div 
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/20 cursor-help"
-                  title={formatPath(targetCodeRepo)} // 🟢 Native tooltip for the full path
+                <span
+                  className={`text-[11px] font-bold truncate ${item.isMandatory || item.isBookmarked ? "text-orange-500" : "text-slate-300"}`}
                 >
-                  <HardDrive size={8} className="text-violet-400" />
-                  <span className="text-[7px] text-violet-300 font-mono uppercase tracking-tighter truncate max-w-[80px]">
-                    {formatPath(targetCodeRepo)}
-                  </span>
+                  {item.text}
+                </span>
+
+                {/* 🟢 DEVELOPMENT SPECIFIC: Now shows shortened repo name instead of static "Code" */}
+                {activeId === "p4" &&
+                  type === "outputs" &&
+                  (item.text.toLowerCase().includes("code") ||
+                    item.text.toLowerCase().includes("test")) && (
+                    <div className="ml-auto mr-2 shrink-0">
+                      <div
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/20 cursor-help"
+                        title={formatPath(targetCodeRepo)} // 🟢 Native tooltip for the full path
+                      >
+                        <HardDrive size={8} className="text-violet-400" />
+                        <span className="text-[7px] text-violet-300 font-mono uppercase tracking-tighter truncate max-w-[80px]">
+                          {formatPath(targetCodeRepo)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                {/* 🟢 Status Indicators */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {type === "inputs" && !item.source && (
+                    <AlertCircle
+                      size={14}
+                      className="text-rose-500 animate-pulse"
+                    />
+                  )}
+                  {item.source && (
+                    <LinkIcon size={10} className="text-emerald-500" />
+                  )}
                 </div>
               </div>
-            )}
-
-        {/* 🟢 Status Indicators */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {type === "inputs" && !item.source && (
-            <AlertCircle size={14} className="text-rose-500 animate-pulse" />
-          )}
-          {item.source && (
-            <LinkIcon size={10} className="text-emerald-500" />
-          )}
-        </div>
-      </div>
               <div className="flex items-center gap-2">
-                <button onClick={(e) => { e.stopPropagation(); onToggle(idx); }} className={`${item.isMandatory || item.isBookmarked ? "text-orange-500" : "text-slate-600 hover:text-orange-400"}`}>
-                  {item.isMandatory || item.isBookmarked ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle(idx);
+                  }}
+                  className={`${item.isMandatory || item.isBookmarked ? "text-orange-500" : "text-slate-600 hover:text-orange-400"}`}
+                >
+                  {item.isMandatory || item.isBookmarked ? (
+                    <BookmarkCheck size={14} />
+                  ) : (
+                    <Bookmark size={14} />
+                  )}
                 </button>
                 {!item.isMandatory && (
-                  <button onClick={(e) => { e.stopPropagation(); onDelete(idx); }} className="text-slate-600 hover:text-rose-500">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(idx);
+                    }}
+                    className="text-slate-600 hover:text-rose-500"
+                  >
                     <X size={13} />
                   </button>
                 )}
               </div>
 
               {linkingIdx === idx && (
-                <motion.div layoutId="activePointer" className="absolute -right-3 top-1/2 -translate-y-1/2 z-[110]">
+                <motion.div
+                  layoutId="activePointer"
+                  className="absolute -right-3 top-1/2 -translate-y-1/2 z-[110]"
+                >
                   <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[8px] border-r-violet-500" />
                 </motion.div>
               )}
@@ -2195,14 +2246,17 @@ function EditableArtefactList({
         )}
       </div>
 
-     <AnimatePresence>
+      <AnimatePresence>
         {(linkingIdx !== null || isCreatingNew) && (
           <motion.div
             // 🟢 Update 1: Animation direction based on type
-            initial={{ opacity: 0, scale: 0.95, x: type === "outputs" ? -20 : 20 }}
+            initial={{
+              opacity: 0,
+              scale: 0.95,
+              x: type === "outputs" ? -20 : 20,
+            }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 0.95, x: type === "outputs" ? -20 : 20 }}
-            
             // 🟢 Update 2: CSS Alignment
             // right-[103%] for Deliverables (outputs) pushes the modal to the LEFT
             // left-[103%] for Inputs pushes the modal to the RIGHT
@@ -2212,19 +2266,27 @@ function EditableArtefactList({
             <div className="flex justify-between items-center relative z-10">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-violet-400">
-                  {isExploring ? "File Explorer" : (isCreatingNew ? "Configure New Element" : "Link Source")}
+                  {isExploring
+                    ? "File Explorer"
+                    : isCreatingNew
+                      ? "Configure New Element"
+                      : "Link Source"}
                 </span>
                 {/* 🟢 Update 3: Dynamic title name logic remains intact */}
                 {linkingIdx !== null && (
-                   <span className="text-[11px] text-white font-bold truncate max-w-[240px]">
-                     {list[linkingIdx]?.text}
-                   </span>
+                  <span className="text-[11px] text-white font-bold truncate max-w-[240px]">
+                    {list[linkingIdx]?.text}
+                  </span>
                 )}
               </div>
-              <X 
-                size={16} 
-                className="cursor-pointer text-slate-500 hover:text-white" 
-                onClick={() => { setLinkingIdx(null); setIsCreatingNew(false); setIsExploring(false); }} 
+              <X
+                size={16}
+                className="cursor-pointer text-slate-500 hover:text-white"
+                onClick={() => {
+                  setLinkingIdx(null);
+                  setIsCreatingNew(false);
+                  setIsExploring(false);
+                }}
               />
             </div>
 
@@ -2234,7 +2296,8 @@ function EditableArtefactList({
                 <div className="grid grid-cols-3 gap-2 relative z-10">
                   {["repo", "file", "text"].map((m) => (
                     <button
-                      key={m} onClick={() => setTempSource({ ...tempSource, type: m })}
+                      key={m}
+                      onClick={() => setTempSource({ ...tempSource, type: m })}
                       className={`py-2 text-[8px] font-black uppercase rounded-lg border transition-all ${tempSource.type === m ? "bg-violet-600 border-violet-400 text-white" : "bg-black border-white/5 text-slate-500"}`}
                     >
                       {m}
@@ -2246,9 +2309,14 @@ function EditableArtefactList({
                   {tempSource.type === "repo" ? (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[7px] text-slate-500 uppercase truncate max-w-[150px]">Base: {repoUrl || "Not Set"}</span>
-                        <button 
-                          onClick={() => { setIsExploring(true); fetchRepoFiles(""); }}
+                        <span className="text-[7px] text-slate-500 uppercase truncate max-w-[150px]">
+                          Base: {repoUrl || "Not Set"}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setIsExploring(true);
+                            fetchRepoFiles("");
+                          }}
                           className="text-[8px] font-bold text-violet-400 hover:text-violet-300 underline"
                         >
                           EXPLORE REPO
@@ -2262,57 +2330,53 @@ function EditableArtefactList({
                       />
                     </div>
                   ) : tempSource.type === "file" ? (
-                  <div 
-                      className="flex flex-col items-center justify-center gap-3 py-6 border-2 border-dashed border-white/10 rounded-xl hover:border-violet-500/40 transition-all cursor-pointer bg-black/20"
+                    <div
+                      className="flex flex-col items-center justify-center gap-3 py-6 border-2 border-white/10 rounded-xl hover:border-violet-500/40 transition-all cursor-pointer bg-black/20"
                       onClick={() => localFileInputRef.current?.click()}
-                  >
-                  <FileUp size={24} className="text-violet-400" />
-                  <div className="flex flex-col items-center">
-                  <span className="text-[10px] font-bold text-white uppercase tracking-tight">
-
-                          {tempSource.value ? tempSource.value : "Select Local File"}
-                  </span>
-                  <span className="text-[8px] text-slate-500 uppercase mt-1">
-
+                    >
+                      <FileUp size={24} className="text-violet-400" />
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] font-bold text-white uppercase tracking-tight">
+                          {tempSource.value
+                            ? tempSource.value
+                            : "Select Local File"}
+                        </span>
+                        <span className="text-[8px] text-slate-500 uppercase mt-1">
                           Click to browse system
-                  </span>
-                  </div>
-                  <input 
-                        type="file" 
+                        </span>
+                      </div>
+                      <input
+                        type="file"
                         ref={localFileInputRef}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files[0];
-                          if(file) {
+                          if (file) {
                             setTempSource({ ...tempSource, value: file.name });
                           }
                         }}
                       />
-                  </div>
+                    </div>
                   ) : (
-                  <textarea
+                    <textarea
                       className="h-24 bg-black border border-white/10 rounded-lg p-2 text-[11px] text-white outline-none resize-none"
                       placeholder="Enter manually..."
                       value={tempSource.value}
-
                       onChange={(e) =>
-
                         setTempSource({ ...tempSource, value: e.target.value })
-
                       }
-
                     />
-
                   )}
- 
                 </div>
 
                 {isCreatingNew && (
                   <div className="flex flex-col gap-1.5 pt-1 border-t border-white/5 relative z-10">
-                    <label className="text-[8px] font-black uppercase text-slate-500 px-1">Element Label</label>
+                    <label className="text-[8px] font-black uppercase text-slate-500 px-1">
+                      Element Label
+                    </label>
                     <input
-                      autoFocus 
-                      value={entryValue} 
+                      autoFocus
+                      value={entryValue}
                       onChange={(e) => setEntryValue(e.target.value)}
                       placeholder="e.g. BRD Document..."
                       className="bg-black border border-violet-500/30 rounded-lg p-2 text-[11px] text-white outline-none"
@@ -2321,7 +2385,11 @@ function EditableArtefactList({
                 )}
 
                 <button
-                  onClick={() => isCreatingNew ? createWithSource() : attachSource(linkingIdx)}
+                  onClick={() =>
+                    isCreatingNew
+                      ? createWithSource()
+                      : attachSource(linkingIdx)
+                  }
                   className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg transition-all"
                 >
                   {isCreatingNew ? "Create Element" : "Update Source"}
@@ -2329,35 +2397,51 @@ function EditableArtefactList({
               </>
             ) : (
               <div className="flex flex-col gap-4 relative z-10">
-                <button onClick={() => setIsExploring(false)} className="text-[10px] text-violet-400 text-left">← Back</button>
+                <button
+                  onClick={() => setIsExploring(false)}
+                  className="text-[10px] text-violet-400 text-left"
+                >
+                  ← Back
+                </button>
                 <div className="bg-black border border-white/10 rounded-xl max-h-[250px] overflow-y-auto custom-scrollbar">
                   {loadingRepo ? (
-                    <div className="p-10 text-center text-slate-500 text-[10px] animate-pulse">Connecting to GitHub...</div>
+                    <div className="p-10 text-center text-slate-500 text-[10px] animate-pulse">
+                      Connecting to GitHub...
+                    </div>
                   ) : errorMessage ? (
-                    <div className="p-10 text-center text-rose-500 text-[10px] leading-relaxed">{errorMessage}</div>
+                    <div className="p-10 text-center text-rose-500 text-[10px] leading-relaxed">
+                      {errorMessage}
+                    </div>
                   ) : (
                     <>
                       {currentDir && (
-                        <div 
-                          onClick={() => fetchRepoFiles(currentDir.split('/').slice(0, -1).join('/'))}
+                        <div
+                          onClick={() =>
+                            fetchRepoFiles(
+                              currentDir.split("/").slice(0, -1).join("/"),
+                            )
+                          }
                           className="p-3 text-[10px] text-violet-400 border-b border-white/5 cursor-pointer hover:bg-white/5"
                         >
                           📁 .. (Back)
                         </div>
                       )}
                       {repoContents.map((file) => (
-                        <div 
+                        <div
                           key={file.sha}
                           onClick={() => {
-                            if (file.type === 'dir') fetchRepoFiles(file.path);
+                            if (file.type === "dir") fetchRepoFiles(file.path);
                             else {
-                              setTempSource({...tempSource, value: file.path});
+                              setTempSource({
+                                ...tempSource,
+                                value: file.path,
+                              });
                               setIsExploring(false);
                             }
                           }}
                           className="p-3 text-[10px] text-slate-300 hover:bg-violet-500/20 cursor-pointer border-b border-white/5 last:border-0 flex items-center gap-2"
                         >
-                          {file.type === 'dir' ? '📁' : '📄'} {file.name}
+                          {file.type === "dir" ? "📁" : "📄"} {file.name}
                         </div>
                       ))}
                     </>
