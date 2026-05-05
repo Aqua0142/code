@@ -1,0 +1,379 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  LayoutDashboard, Search, Plus, MoreHorizontal, 
+  ArrowLeft, Filter, PlusCircle, FolderInput, Search as SearchIcon, 
+  Trash2, Edit2, ArrowUpDown, ArrowUp, ArrowDown 
+} from 'lucide-react';
+
+import { useNavigate, Outlet, useLocation } from "react-router-dom";
+
+const MOCK_PROJECT = { 
+  id: 1, 
+  name: 'E-commerce Platform V2', 
+  status: 'Running', 
+  stage: 'Deployment', 
+  cost: '$1,245.50', 
+  created: '2026-03-15', 
+  pending: true, 
+  progress: 7,
+  stages: [
+    { id: 'G1', name: 'Requirements', state: 'approved' },
+    { id: 'G2', name: 'Planning', state: 'approved' },
+    { id: 'G3', name: 'Architecture', state: 'approved' },
+    { id: 'G4', name: 'Design', state: 'approved' },
+    { id: 'G5', name: 'Development', state: 'approved' },
+    { id: 'G6', name: 'Code Review', state: 'approved' },
+    { id: 'G7', name: 'Testing', state: 'gate_pending' },
+    { id: 'G8', name: 'Security', state: 'pending' },
+    { id: 'G9', name: 'UAT', state: 'pending' },
+    { id: 'G10', name: 'Deployment', state: 'pending' },
+  ],
+};
+
+const STAGES = [
+  { id: "p1", label: "Requirements" },
+  { id: "p2", label: "Planning" },
+  { id: "p3", label: "Architecture" },
+  { id: "p4", label: "Development" },
+  { id: "p5", label: "Testing" },
+  { id: "p6", label: "NFR Testing" },
+  { id: "p7", label: "UAT" },
+  { id: "p8", label: "Deployment" },
+];
+
+export default function AIOrchestrationDashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // 1. Core Data States
+  const [projects, setProjects] = useState(() => {
+    const saved = localStorage.getItem("projects");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.some(p => p.id === 1) ? parsed : [MOCK_PROJECT, ...parsed];
+    }
+    return [MOCK_PROJECT];
+  });
+
+  // 2. UI States
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [filter, setFilter] = useState('All');
+  const [searchQuery, setSearchQuery] = useState(''); 
+  const [showCreateOptions, setShowCreateOptions] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null); 
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sortBy, setSortBy] = useState('Date'); 
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  // Sync projects to local storage
+  useEffect(() => {
+    localStorage.setItem("projects", JSON.stringify(projects));
+  }, [projects]);
+
+  // 3. Routing Logic: Determine if we are on the main grid or a sub-page
+  const isDashboardHome = location.pathname === "/" || location.pathname === "/dashboard";
+
+  // 4. Handlers
+  const handleCreateNew = () => {
+    setShowCreateOptions(false);
+    navigate("/setup");
+  };
+
+  const handleEditClick = (project) => {
+    setActiveMenu(null);
+    navigate(`/edit/${project.id}`);
+  };
+
+  const handleDelete = (id) => {
+    setProjects(projects.filter(p => p.id !== id));
+    setActiveMenu(null);
+  };
+
+  const handleSort = (type) => {
+    if (sortBy === type) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(type);
+      setSortOrder('desc');
+    }
+  };
+
+  // Filter and Sort Logic
+  const filteredProjects = useMemo(() => {
+    let result = projects.filter(p => {
+      const matchesFilter = filter === 'All' || p.status === filter;
+      const matchesSearch = (p.name || "").toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesFilter && matchesSearch;
+    });
+
+    return result.sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'Date') comparison = new Date(a.created) - new Date(b.created);
+      else if (sortBy === 'Cost') {
+        const valA = parseFloat((a.cost || "$0").replace(/[$,]/g, ''));
+        const valB = parseFloat((b.cost || "$0").replace(/[$,]/g, ''));
+        comparison = valA - valB;
+      } else if (sortBy === 'Progress') comparison = a.progress - b.progress;
+      
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+  }, [projects, filter, searchQuery, sortBy, sortOrder]);
+
+  return (
+    <div className="flex h-screen bg-[#09090b] text-zinc-100 font-sans overflow-hidden" 
+      onClick={() => { 
+        setShowCreateOptions(false); 
+        setActiveMenu(null); 
+        setShowSortMenu(false); 
+      }}
+    >
+      {/* SIDEBAR (Optional - keep your NavItems here if you have a sidebar) */}
+
+      <main className="flex-1 flex flex-col min-w-0 bg-zinc-950/30 overflow-hidden">
+        {isDashboardHome ? (
+          <>
+            <header className="h-20 flex items-center justify-between px-8 bg-[#09090b]/40 backdrop-blur-md border-b border-zinc-800/30 shrink-0 relative z-50">
+              {/* LEFT SIDE: Filter Bar */}
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {['All', 'Running', 'Paused', 'Completed', 'Failed'].map((s) => (
+                  <button 
+                    key={s} 
+                    onClick={() => setFilter(s)} 
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all border ${filter === s ? 'bg-zinc-100 text-zinc-950 border-white' : 'bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-zinc-200'}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* RIGHT SIDE: Search, Sort, and Create grouped together */}
+              <div className="flex items-center gap-3">
+                {/* 1. Search Bar */}
+                <div className="relative group">
+                  <SearchIcon 
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-violet-400 transition-colors" 
+                    size={16} 
+                  />
+                  <input 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search Project..." 
+                    // Standardized height (h-10), padding, and text-sm to match buttons
+                    className="h-8 bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 text-sm w-44 focus:w-60 focus:border-violet-500/50 outline-none transition-all text-white placeholder:text-zinc-600"
+                  />
+                </div>
+
+                {/* 2. Sort Menu */}
+                <div className="relative">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowSortMenu(!showSortMenu); }}
+                    // Standardized height (h-10) and padding
+                    className="h-8 flex items-center gap-2 px-4 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-400 hover:text-zinc-200 transition-all active:scale-95"
+                  >
+                    <ArrowUpDown size={14} className={sortBy !== 'Date' ? 'text-violet-400' : ''} />
+                    <span>Sort: {sortBy}</span>
+                    {sortOrder === 'asc' ? <ArrowUp size={12} className="text-violet-400" /> : <ArrowDown size={12} className="text-violet-400" />}
+                  </button>
+
+                  {showSortMenu && (
+                    <div className="absolute right-0 mt-2 w-40 bg-[#1c1c21] border border-zinc-800 rounded-xl shadow-2xl py-1 z-50">
+                      {['Date', 'Cost', 'Progress'].map((type) => (
+                        <button 
+                          key={type} 
+                          onClick={() => handleSort(type)} 
+                          className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center justify-between ${sortBy === type ? 'text-violet-400' : 'text-zinc-400 hover:bg-zinc-800'}`}
+                        >
+                          {type}
+                          {sortBy === type && (sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Create Project Button */}
+                <div className="relative">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowCreateOptions(!showCreateOptions); }}
+                    // Standardized height (h-10) and text-sm
+                    className="h-8 bg-violet-600 hover:bg-violet-500 text-white px-5 rounded-xl text-xs font-bold shadow-lg shadow-violet-600/20 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <Plus size={16} /> Create Project
+                  </button>
+
+                  {showCreateOptions && (
+                    <div className="absolute right-0 mt-3 w-56 bg-[#16161a] border border-zinc-800 rounded-2xl shadow-2xl py-2 z-[200]">
+                      <button onClick={handleCreateNew} className="w-full px-4 py-3 text-left hover:bg-zinc-800 flex items-center gap-3 transition-colors">
+                        <PlusCircle className="text-violet-400" size={18} />
+                        <div>
+                          <p className="text-xs font-bold text-zinc-200">New Project</p>
+                          <p className="text-[10px] text-zinc-500">Initialize from scratch</p>
+                        </div>
+                      </button>
+                      <button onClick={() => navigate("/import")} className="w-full px-4 py-3 text-left hover:bg-zinc-800 flex items-center gap-3 transition-colors border-t border-zinc-800/50">
+                        <FolderInput className="text-sky-400" size={18} />
+                        <div>
+                          <p className="text-xs font-bold text-zinc-200">Add Existing</p>
+                          <p className="text-[10px] text-zinc-500">Import from GitHub/Jira</p>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-5">
+              {filteredProjects.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center">
+                  <h3 className="text-lg font-bold text-zinc-400 uppercase">No Projects Found</h3>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pb-10">
+                  {filteredProjects.map((p) => (
+                    <ProjectCard 
+                      key={p.id} 
+                      project={p} 
+                      onClick={() => navigate(`/project/${p.id}`)}
+                      onEdit={() => handleEditClick(p)} 
+                      onDelete={() => handleDelete(p.id)}                       
+                      isMenuOpen={activeMenu === p.id}
+                      onToggleMenu={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === p.id ? null : p.id); }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* 🟢 THIS IS THE KEY CHANGE: 
+             Routes like /setup, /project/:id, etc., render here */
+          <Outlet context={{ projects, setProjects }} />
+        )}
+      </main>
+    </div>
+  );
+}
+
+function ProjectCard({ project, onEdit, onDelete, isMenuOpen, onToggleMenu, onClick }) {
+
+  const styles = { 
+    Running: 'bg-amber-500/10 text-amber-400 border-amber-500/20', 
+    Paused: 'bg-sky-500/10 text-sky-400 border-sky-500/20', 
+    Completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', 
+    Failed: 'bg-red-500/10 text-red-400 border-red-500/20' 
+  };
+  
+  const phaseIds = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+
+  // Inside ProjectCard function
+  const getPhaseStatus = (phaseId) => {
+    // If ID is not in selectedPhaseIds, it was skipped during setup
+    if (project.selectedPhaseIds && !project.selectedPhaseIds.includes(phaseId)) {
+      return 'skipped';
+    }
+    const currentStageId = phaseIds.find(id => 
+      STAGES.find(s => s.id === id)?.label === project.stage
+    ) || 'p1';
+
+    const currentIndex = phaseIds.indexOf(currentStageId);
+    const targetIndex = phaseIds.indexOf(phaseId);
+
+    if (targetIndex < currentIndex) return 'completed';
+    if (targetIndex === currentIndex) return 'active';
+    return 'unreached';
+  };
+
+  const getMiniDotColor = (status) => {
+    switch (status) {
+      case 'completed': 
+        return 'bg-emerald-500 '; // Green shadow-[0_0_8px_#10b981]
+      case 'active': 
+        return 'bg-violet-500  '; // Purple shadow-[0_0_10px_#8b5cf6]
+      case 'unreached': 
+        return 'bg-amber-500 '; // Amber border border-amber-500/20
+      case 'skipped': 
+        return 'bg-zinc-900 border border-zinc-600 border-dashed '; // Dashed Gray
+      default: 
+        return 'bg-zinc-800';
+    }
+  };
+  
+  // const getDotColor = (stageState) => {
+  //   if (stageState === 'approved') return 'bg-emerald-500';
+  //   if (stageState === 'gate_pending') return 'bg-violet-500 animate-pulse';
+  //   if (stageState === 'executing') return 'bg-amber-500 animate-pulse';
+  //   return 'bg-zinc-800'; 
+  // };
+
+  const gateIds = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10'];
+
+  return (
+    <div 
+      onClick={onClick} 
+      className="cursor-pointer bg-[#16161a]/60 border border-zinc-800/60 rounded-[2rem] p-6 group hover:border-violet-500/60 transition-all flex flex-col h-[260px] relative"
+    >
+      <div className="flex justify-between items-start mb-2 shrink-0">
+          <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase border ${styles[project.status]}`}>
+            {project.status}
+          </span>
+          <div className="relative">
+            {/* 🟢 FIXED: Event object 'e' is passed to stopPropagation and onToggleMenu */}
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onToggleMenu(e); 
+              }} 
+              className="text-zinc-700 hover:text-white p-1 rounded-md hover:bg-zinc-800"
+            >
+              <MoreHorizontal size={20} />
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-32 bg-[#1c1c21] border border-zinc-800 rounded-xl py-2 z-[110] shadow-2xl">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onEdit(); }} 
+                  className="w-full px-4 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2 font-bold"
+                >
+                  <Edit2 size={12} className="text-violet-400" /> Edit
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }} 
+                  className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 border-t border-zinc-800/50 mt-1 font-bold"
+                >
+                  <Trash2 size={12} /> Delete
+                </button>
+              </div>
+            )}
+          </div>
+      </div>
+
+      <div className="flex-1 flex flex-col justify-center">
+        <h3 className="text-lg font-bold text-zinc-100 group-hover:text-violet-400 truncate">{project.name}</h3>
+        <p className="text-zinc-500 text-[10px] font-medium uppercase tracking-widest mb-4 italic">
+          Stage: {project.stage || 'Initializing'}
+        </p>
+        
+        {/* MINI PIPELINE */}
+        <div className="my-2 flex gap-1.5 items-center w-full">
+          {phaseIds.map((id) => (
+            <div 
+              key={id} 
+              className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${getMiniDotColor(getPhaseStatus(id))}`} 
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/80 pt-4 mt-auto">
+        <div className="text-left">
+          <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest leading-none mb-1">Cost</p>
+          <p className="text-xs font-mono text-zinc-300 font-bold">${project.totalCost || project.cost}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest leading-none mb-1">Created</p>
+          <p className="text-xs font-mono text-zinc-300 font-bold">{project.created}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
