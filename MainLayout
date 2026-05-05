@@ -1,0 +1,107 @@
+import React from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import Sidebar from './Sidebar';
+import { LayoutDashboard, Globe, ShieldCheck, Zap } from "lucide-react";
+
+export default function MainLayout() {
+  const location = useLocation();
+  const isLoginPage = location.pathname.toLowerCase() === '/login';
+
+  // Dynamic header title mapping
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path === '/') return 'PROJECT OVERVIEW';
+    if (path === '/setup') return 'PROJECT INITIALIZER';
+    if (path === '/action-center') return 'ACTION CENTER';
+    if (path.includes('/project/')) return 'PROJECT INTELLIGENCE';
+    if (path === '/phase-selection') return 'PHASE ARCHITECT';
+    return 'ELITE AI POD';
+  };
+
+
+  return (
+    <div className="flex flex-col h-screen w-full bg-[#050506] text-white overflow-hidden">
+      {/* 1. FULL WIDTH HEADER - Always visible */}
+      <header className="h-14 border-b border-zinc-800/50 bg-[#09090b]/80 backdrop-blur-md flex items-center justify-between px-4 shrink-0 z-40 relative">
+        <div className="flex items-center w-full">
+          <div className="flex items-center gap-3 shrink-0">
+            <img 
+              src="https://raw.githubusercontent.com/Aqua0142/Logo/main/image.png" 
+              alt="Elite AI Squad Logo" 
+              className="h-12 w-auto"
+              onError={(e) => { e.target.style.display = 'none'; }} 
+            />
+            <div className="h-5 w-[2px] bg-zinc-800" />
+          </div>
+
+          <div className="p-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-violet-600/20">
+                <LayoutDashboard size={20} className="text-white" />
+              </div>
+              <span className="font-bold text-lg tracking-tighter uppercase whitespace-nowrap text-white">
+                ELITE<span className="text-violet-500 italic font-black"> AI</span> SQUAD
+              </span>
+            </div>
+          </div>
+
+          {/* 🟢 CENTERED TITLE: Absolute positioning for perfect center alignment */}
+          <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none">
+            <h2 className="text-[14px] font-black uppercase tracking-[0.3em] text-zinc-400 whitespace-nowrap">
+              Health sciences innovation center
+            </h2>
+          </div>
+
+          {/* Spacer to balance flex layout */}
+          <div className="shrink-0 w-[114px] invisible" aria-hidden="true" /> 
+        </div>
+        
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-12 text-zinc-500 border-l-2 border-zinc-800 pl-6">
+            <a 
+              href="https://www.cognizant.com/us/en/about-cognizant" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[12px] font-black tracking-[0.2em] hover:text-violet-400 transition-colors uppercase"
+            >
+              About
+            </a>
+            <a 
+              href="https://www.cognizant.com/us/en/about-cognizant/contact-us" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[12px] font-black tracking-[0.2em] hover:text-violet-400 transition-colors uppercase"
+            >
+              Help
+            </a>
+          </div>
+        </div>
+      </header>
+
+      {/* 2. MIDDLE SECTION */}
+      <div className="flex-1 flex min-w-0 relative overflow-hidden">
+        {/* 🟢 SIDEBAR: Only rendered if not on login page */}
+        {!isLoginPage && <Sidebar />}
+
+        {/* 🟢 MAIN VIEW AREA: Reserves 80px (pl-20) for the collapsed sidebar icons */}
+        <main 
+          className={`flex-1 flex flex-col min-w-0 relative overflow-y-auto custom-scrollbar 
+            bg-[radial-gradient(#ffffff03_1px,transparent_1px)] [background-size:32px_32px]
+            transition-all duration-300
+            ${!isLoginPage ? 'pl-20' : 'pl-0'}`} 
+        >
+          <Outlet />
+        </main>
+      </div>
+
+      {/* 3. FULL WIDTH FOOTER - Always visible */}
+      <footer className="h-10 border-t border-zinc-800/50 bg-[#09090b] flex items-center justify-between px-6 shrink-0 z-40">
+        <div className="flex items-center gap-4">
+          <span className="text-[9px] font-bold text-zinc-400 tracking-widest">
+            ©2025-2027 Cognizant, all rights reserved
+          </span>
+        </div>
+      </footer>
+    </div>
+  );
+}
