@@ -1,0 +1,1 @@
+Build a single-page application with a search bar that queries a SQL database of medications. As the user types, the UI should filter the results in real-time, displaying the medication name, current stock level, and highlighting items that are running low and need reordering.
